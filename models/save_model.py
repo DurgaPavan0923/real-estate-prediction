@@ -1,19 +1,42 @@
-import joblib
 import pandas as pd
-from xgboost import XGBRegressor
-from sklearn.model_selection import train_test_split
-import os
+import joblib
+from sklearn.model_selection import train_test_split, GridSearchCV
+from sklearn.ensemble import RandomForestRegressor
 
-df = pd.read_csv("../data/folder/cleaned_data_with_transaction_year.csv")
+# Load dataset
+df = pd.read_csv("data/cleaned_data_with_transaction_year.csv")
 
-x = df.drop("price_per_unit_area", axis=1)
+# Prepare features and target
+X = df.drop("price_per_unit_area", axis=1)
 y = df["price_per_unit_area"]
 
-x_train, x_test, y_train, y_test = train_test_split(x, y, test_size=0.2, random_state=42)
+# Train-test split
+X_train, X_test, y_train, y_test = train_test_split(
+    X, y, test_size=0.2, random_state=42
+)
 
-model = XGBRegressor(random_state=42)
-model.fit(x_train, y_train)
+# Define hyperparameter grid
+param_grid = {
+    "n_estimators": [100, 200],
+    "max_depth": [10, None],
+    "min_samples_split": [2, 5]
+}
 
-os.makedirs("models", exist_ok=True)
+# Grid search to tune Random Forest
+grid_search = GridSearchCV(
+    estimator=RandomForestRegressor(random_state=42),
+    param_grid=param_grid,
+    scoring="neg_mean_squared_error",
+    cv=5,
+    n_jobs=-1
+)
 
-joblib.dump(model, "models/final_model.pkl")
+grid_search.fit(X_train, y_train)
+
+# Get best model
+best_model = grid_search.best_estimator_
+
+# Save the best model to file
+joblib.dump(best_model, "models/final_model.pkl")
+
+print("Tuned Random Forest model saved to models/final_model.pkl")
